@@ -1,0 +1,29 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom Scrollbar Hide (used in your Home.tsx categories) */
+/* ... other css ... */
+
+/* Add this to hide the scrollbar but keep scrolling functionality */
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+.scrollbar-hide {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+}
+
+.bg-nigeria-green {
+  background-color: #008751 !important;
+}
+.text-nigeria-green {
+  color: #008751 !important;
+}
+.border-nigeria-green {
+  border-color: #008751 !important;
+}
+

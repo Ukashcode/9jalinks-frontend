@@ -1,13 +1,8 @@
-
 import { User, Product, AuthResponse } from '../types';
 
-// CHANGE THIS URL if you deploy to Render/Vercel later
-// OLD LINE:
-// const API_URL = 'http://localhost:5000/api';
+// We cast to 'any' here as a backup in case the d.ts file doesn't pick up immediately
+const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000/api';
 
-// NEW LINE:
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-// Helper to attach the JWT token to requests
 const getHeaders = () => {
   const token = localStorage.getItem('token');
   return {
@@ -20,6 +15,8 @@ export const Api = {
   // --- AUTHENTICATION ---
 
   signup: async (data: any) => {
+    // Note: ensure your backend route is exactly /auth/signup. 
+    // If your backend server.js uses app.use('/api/auth', ...), then this is correct.
     const res = await fetch(`${API_URL}/auth/signup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -32,13 +29,25 @@ export const Api = {
     return { email: data.email };
   },
 
-  verifyOtp: async (payload: { email: string; otp: string; userData: any }): Promise<AuthResponse> => {
-    // For this real integration, we skip actual email OTP (requires paid service).
-    // We check the hardcoded mock code, then log the user in.
-    if (payload.otp !== '123456') throw new Error('Invalid OTP');
-    
-    // Auto-login after "verification"
-    return Api.login(payload.userData.email, payload.userData.password);
+  // 👇 UPDATED: Now connects to your REAL Backend instead of using fake "123456"
+  verifyOtp: async (payload: { email: string; otp: string }): Promise<AuthResponse> => {
+    const res = await fetch(`${API_URL}/auth/verify-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      // Backend expects "code", but frontend passes "otp", so we map it here:
+      body: JSON.stringify({ email: payload.email, code: payload.otp }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.message || 'Invalid OTP');
+    }
+
+    const data = await res.json();
+    // Save the token immediately so the user is logged in
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('user_session', JSON.stringify(data.user));
+    return data;
   },
 
   login: async (email: string, password: string): Promise<AuthResponse> => {
@@ -91,7 +100,6 @@ export const Api = {
     if (!res.ok) throw new Error('Failed to update profile');
     const updatedUser = await res.json();
     
-    // Update local session if it's the logged-in user
     const currentUser = Api.getCurrentUser();
     if (currentUser && currentUser.id === userId) {
         localStorage.setItem('user_session', JSON.stringify(updatedUser));
@@ -148,7 +156,7 @@ export const Api = {
     });
   },
 
-  // --- GENERAL / CONTACT ---
+  // --- GENERAL ---
 
   submitContactForm: async (data: { email: string; message?: string }) => {
     const res = await fetch(`${API_URL}/contact`, {
@@ -160,9 +168,8 @@ export const Api = {
     return res.json();
   },
 
-  // --- SOCIAL LOGIN (Placeholder) ---
   socialLogin: async (provider: string) => {
-    alert("Real social login requires OAuth configuration (Firebase/Passport). Please use email/password for this demo.");
-    throw new Error("Social login not implemented in demo backend.");
+    alert("Real social login requires OAuth configuration.");
+    throw new Error("Social login not implemented.");
   }
 };

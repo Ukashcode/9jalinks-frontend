@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Api } from '../services/api';
 import { User } from '../types';
-import { Eye, EyeOff, Facebook, Mail, Lock, User as UserIcon, Store, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User as UserIcon, Store, ArrowLeft } from 'lucide-react';
 
 interface AuthProps {
   type: 'login' | 'signup';
@@ -32,9 +32,10 @@ const Auth: React.FC<AuthProps> = ({ type, onAuthSuccess, onNavigate }) => {
 
     try {
       if (mode === 'signup') {
-        await Api.signup({ name, email, password, isSeller });
+        // 1. Create the user on the backend (sends OTP email)
+        await Api.signup({ name, email, password, role: isSeller ? 'SELLER' : 'BUYER' });
         setMode('otp');
-        alert(`(Development Mode) Your OTP code is: 123456`);
+        // removed the mock alert here
       } else if (mode === 'login') {
         const response = await Api.login(email, password);
         onAuthSuccess(response.user);
@@ -54,7 +55,9 @@ const Auth: React.FC<AuthProps> = ({ type, onAuthSuccess, onNavigate }) => {
     setLoading(true);
     setError('');
     try {
-      const response = await Api.verifyOtp({ email, otp, userData: { name, email, password, isSeller } });
+      // 2. Verify using only Email and OTP
+      // (We removed 'userData' here to fix the TypeScript error)
+      const response = await Api.verifyOtp({ email, otp });
       onAuthSuccess(response.user);
     } catch (err: any) {
       setError(err.message || 'Invalid OTP');
@@ -98,6 +101,9 @@ const Auth: React.FC<AuthProps> = ({ type, onAuthSuccess, onNavigate }) => {
 
         {mode === 'otp' ? (
           <form className="mt-8 space-y-6" onSubmit={handleVerifyOtp}>
+            <div className="text-center text-sm text-gray-600 mb-4">
+              Enter the 6-digit code sent to <strong>{email}</strong>
+            </div>
             <input type="text" required className="block w-full px-3 py-4 border border-gray-300 text-gray-900 rounded-lg focus:ring-2 focus:ring-nigeria-green focus:border-transparent text-center text-2xl tracking-[1em] font-mono" placeholder="123456" value={otp} onChange={(e) => setOtp(e.target.value)} maxLength={6} />
             <button type="submit" disabled={loading} className="w-full flex justify-center py-3 px-4 border border-transparent text-sm font-bold rounded-lg text-white bg-nigeria-green hover:bg-green-700 transition-colors shadow-lg disabled:opacity-50">
               {loading ? 'Verifying...' : 'Verify Code'}

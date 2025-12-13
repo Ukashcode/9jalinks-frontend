@@ -1,14 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { User, Product, CATEGORIES } from '../types';
-import { Api } from '../services/api'; // UPDATED IMPORT
-import { Plus, Image as ImageIcon, Trash2, Edit, Save, Share2, Phone, Instagram, BarChart2, Check, Star, TrendingUp, DollarSign, Package, Camera, User as UserIcon, RotateCw, ZoomIn, Wand2, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { User, Product } from '../types';
+import { Api } from '../services/api';
+import { 
+  Plus, Trash2, Edit, Store, 
+  Settings, Package, LogOut, Image as ImageIcon,
+  Loader
+} from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
-// ... (Keep the FILTERS array and Image Editor helper functions exactly as they were in your original code)
-const FILTERS = [
-  { name: 'None', value: 'none' },
-  { name: 'Grayscale', value: 'grayscale(100%)' },
-  { name: 'Sepia', value: 'sepia(100%)' },
-  { name: 'Vivid', value: 'saturate(200%) contrast(110%)' },
+const CATEGORIES = [
+  'Electronics', 'Fashion', 'Home & Garden', 'Beauty', 
+  'Vehicles', 'Real Estate', 'Services', 'Others'
 ];
 
 interface DashboardProps {
@@ -17,159 +19,282 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ user, onUpdateUser }) => {
+  const navigate = useNavigate();
   const isSeller = user.role === 'SELLER';
-  const [activeTab, setActiveTab] = useState<'products' | 'add' | 'profile'>('products');
+  
+  const [activeTab, setActiveTab] = useState<'products' | 'add' | 'profile'>(isSeller ? 'products' : 'profile');
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
-  const [stats, setStats] = useState({ totalViews: 0, totalValue: 0, totalProducts: 0 });
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
 
-  // Forms
-  const [newProduct, setNewProduct] = useState({
-    title: '', description: '', price: '', category: CATEGORIES[0], condition: 'New' as const, images: [] as string[]
+  // --- FORM STATES ---
+  const [productForm, setProductForm] = useState({
+    title: '',
+    description: '',
+    price: '',
+    category: CATEGORIES[0],
+    condition: 'New',
+    location: '',
+    images: [] as string[] // Stores Base64 strings
   });
 
   const [profileForm, setProfileForm] = useState({
-    storeName: user.storeName || '', description: user.description || '', location: user.location || '',
-    whatsapp: user.socialLinks?.whatsapp || '', instagram: user.socialLinks?.instagram || '', profileImage: user.profileImage || ''
+    name: user.name || '',
+    storeName: user.store?.name || '',
+    description: user.store?.description || '',
+    location: user.store?.location || '',
+    // ✅ Fixed: Using 'social' to match Type definition
+    whatsapp: user.social?.whatsapp || '', 
+    instagram: user.social?.instagram || '',
   });
-  const [profileSaving, setProfileSaving] = useState(false);
 
-  // ... (Keep Image Editor state: editingTarget, editConfig, isDragging, etc. from original code)
-  // Simplified for brevity in this response, but please paste the Image Editor logic back here if you want it.
-  // I will assume you keep the logic but just change the API calls below.
-
+  // --- LOAD PRODUCTS ---
   useEffect(() => {
-    if (!isSeller) setActiveTab('profile');
-    if (activeTab === 'products' && isSeller) loadSellerProducts();
+    if (activeTab === 'products' && isSeller) {
+      loadSellerProducts();
+    }
   }, [activeTab, isSeller]);
 
   const loadSellerProducts = async () => {
     setLoading(true);
     try {
-      const data = await Api.getProducts({ sellerId: user.id });
-      setProducts(data);
-      const totalViews = data.reduce((acc, curr) => acc + curr.views, 0);
-      const totalValue = data.reduce((acc, curr) => acc + curr.price, 0);
-      setStats({ totalViews, totalValue, totalProducts: data.length });
+      // We use the specialized endpoint for the logged-in seller
+      const data = await Api.getProducts(); 
+      // Filter client-side to ensure we only see OWN products
+      const myProducts = data.filter((p: any) => {
+         const sellerId = typeof p.seller === 'string' ? p.seller : p.seller._id || p.seller.id;
+         return sellerId === user.id || sellerId === user._id;
+      });
+      setProducts(myProducts);
     } catch (e) {
-      console.error(e);
+      console.error("Failed to load products", e);
     }
     setLoading(false);
+  };
+
+  // --- HANDLERS ---
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      Array.from(e.target.files).forEach(file => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setProductForm(prev => ({ 
+            ...prev, 
+            images: [...prev.images, reader.result as string] 
+          }));
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+  };
+
+  const removeImage = (index: number) => {
+    setProductForm(prev => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index)
+    }));
   };
 
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!productForm.title || !productForm.price) return alert("Title and Price are required");
+    
     setLoading(true);
     try {
+      const payload = {
+        ...productForm,
+        price: Number(productForm.price),
+      };
+
       if (editingProductId) {
-        await Api.updateProduct(editingProductId, {
-          ...newProduct,
-          price: Number(newProduct.price)
-        });
+        // Cast to any to bypass strict partial checks during rapid dev
+        await Api.updateProduct(editingProductId, payload as any);
         alert('Product updated successfully!');
       } else {
-        await Api.addProduct({
-          sellerId: user.id,
-          ...newProduct,
-          price: Number(newProduct.price)
-        });
+        await Api.addProduct(payload as any);
         alert('Product added successfully!');
       }
-      setNewProduct({ title: '', description: '', price: '', category: CATEGORIES[0], condition: 'New', images: [] });
+
+      setProductForm({ title: '', description: '', price: '', category: CATEGORIES[0], condition: 'New', location: '', images: [] });
       setEditingProductId(null);
       setActiveTab('products');
-    } catch (error) {
-      alert('Failed to save product');
+      loadSellerProducts();
+    } catch (error: any) {
+      console.error(error);
+      alert(error.message || 'Failed to save product.');
     }
     setLoading(false);
   };
 
-  const handleDeleteClick = async (productId: string) => {
-    if (window.confirm("Delete this product?")) {
-       try {
-         await Api.deleteProduct(productId);
-         loadSellerProducts(); // Reload list
-       } catch (err) { alert("Failed to delete product."); }
+  const handleDeleteProduct = async (id: string) => {
+    if (!window.confirm("Are you sure you want to delete this product?")) return;
+    try {
+      await Api.deleteProduct(id);
+      setProducts(products.filter(p => p._id !== id));
+    } catch (error) {
+      alert("Failed to delete");
     }
   };
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    setProfileSaving(true);
+    setLoading(true);
     try {
-      const updatedUser = await Api.updateProfile(user.id, {
-        storeName: profileForm.storeName,
-        description: profileForm.description,
-        location: profileForm.location,
-        socialLinks: { whatsapp: profileForm.whatsapp, instagram: profileForm.instagram },
-        profileImage: profileForm.profileImage
-      });
+      const updates = {
+        name: profileForm.name,
+        store: {
+          name: profileForm.storeName,
+          description: profileForm.description,
+          location: profileForm.location
+        },
+        social: {
+          whatsapp: profileForm.whatsapp,
+          instagram: profileForm.instagram
+        }
+      };
+
+      const updatedUser = await Api.updateProfile(user.id, updates as any);
       onUpdateUser(updatedUser);
       alert('Profile updated successfully!');
     } catch (error) {
       alert('Failed to update profile');
     }
-    setProfileSaving(false);
+    setLoading(false);
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (e.target.files) {
-        Array.from(e.target.files).forEach(file => {
-          const reader = new FileReader();
-          reader.onloadend = () => setNewProduct(prev => ({ ...prev, images: [...prev.images, reader.result as string] }));
-          reader.readAsDataURL(file);
-        });
-      }
-  };
-  
-  // (Paste the rest of the Dashboard UI JSX here. Use `products.map` inside the table, and connect the forms.)
-  // The structure remains identical to your original file, just ensure `MockBackend` is replaced with `Api` logic above.
-  
   return (
-    <div className="min-h-screen bg-gray-100 py-10 relative">
-        {/* ... Reuse your existing Dashboard JSX ... */}
-        {/* Ensure the tab buttons call handleTabChange */}
-        {/* Ensure the form calls handleSaveProduct */}
-        {/* Ensure the profile form calls handleUpdateProfile */}
-        
-        {/* Placeholder for JSX to ensure file validity */}
-        <div className="max-w-6xl mx-auto px-4">
-            <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
-            {/* ... Rest of your UI ... */}
-             <div className="bg-white p-6 rounded shadow">
-                 {activeTab === 'profile' && (
-                     <form onSubmit={handleUpdateProfile}>
-                         <div className="mb-4">
-                             <label className="block text-sm font-medium">Store Name</label>
-                             <input type="text" className="border w-full p-2 rounded" value={profileForm.storeName} onChange={e => setProfileForm({...profileForm, storeName: e.target.value})} />
-                         </div>
-                         <button type="submit" disabled={profileSaving} className="bg-nigeria-green text-white px-4 py-2 rounded">{profileSaving ? 'Saving...' : 'Save Profile'}</button>
-                     </form>
-                 )}
-                 {activeTab === 'products' && (
-                     <div>
-                        {products.map(p => (
-                            <div key={p.id} className="flex justify-between border-b py-2">
-                                <span>{p.title}</span>
-                                <div className="space-x-2">
-                                    <button onClick={() => { setEditingProductId(p.id); setNewProduct({ title: p.title, description: p.description, price: p.price.toString(), category: p.category, condition: p.condition as any, images: p.images }); setActiveTab('add'); }} className="text-blue-500">Edit</button>
-                                    <button onClick={() => handleDeleteClick(p.id)} className="text-red-500">Delete</button>
-                                </div>
-                            </div>
-                        ))}
-                     </div>
-                 )}
-                 {activeTab === 'add' && (
-                     <form onSubmit={handleSaveProduct}>
-                         <div className="mb-4"><label>Title</label><input className="border w-full p-2" value={newProduct.title} onChange={e=>setNewProduct({...newProduct, title: e.target.value})} /></div>
-                         <div className="mb-4"><label>Price</label><input className="border w-full p-2" type="number" value={newProduct.price} onChange={e=>setNewProduct({...newProduct, price: e.target.value})} /></div>
-                         <div className="mb-4"><label>Images</label><input type="file" onChange={handleImageUpload} multiple /></div>
-                         <button className="bg-nigeria-green text-white px-4 py-2 rounded">{loading ? 'Saving' : 'Save Product'}</button>
-                     </form>
-                 )}
-             </div>
+    <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
+      {/* SIDEBAR */}
+      <aside className="w-full md:w-64 bg-white border-r min-h-[200px] md:min-h-screen p-4">
+        <div className="flex items-center gap-2 mb-8 text-green-700 font-bold text-xl px-2">
+           <Store /> {user.role === 'SELLER' ? 'Seller Center' : 'My Account'}
         </div>
+        
+        <nav className="space-y-2">
+          {isSeller && (
+            <>
+              <button onClick={() => setActiveTab('products')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition ${activeTab === 'products' ? 'bg-green-50 text-green-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}>
+                <Package size={20} /> My Products
+              </button>
+              <button onClick={() => { setActiveTab('add'); setEditingProductId(null); setProductForm({ title: '', description: '', price: '', category: CATEGORIES[0], condition: 'New', location: '', images: [] }); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition ${activeTab === 'add' ? 'bg-green-50 text-green-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}>
+                <Plus size={20} /> Add Product
+              </button>
+            </>
+          )}
+          <button onClick={() => setActiveTab('profile')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition ${activeTab === 'profile' ? 'bg-green-50 text-green-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}>
+            <Settings size={20} /> Profile Settings
+          </button>
+          
+          <button onClick={() => { Api.logout(); navigate('/login'); }} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-500 hover:bg-red-50 mt-8">
+            <LogOut size={20} /> Logout
+          </button>
+        </nav>
+      </aside>
+
+      {/* MAIN CONTENT */}
+      <main className="flex-1 p-6 md:p-10">
+        
+        {/* PRODUCTS LIST */}
+        {activeTab === 'products' && (
+          <div>
+            <h2 className="text-2xl font-bold mb-6">My Products</h2>
+            {loading ? (
+               <div className="flex justify-center p-10"><Loader className="animate-spin text-green-600" /></div>
+            ) : products.length === 0 ? (
+               <div className="text-center p-10 bg-white rounded-xl shadow-sm border border-dashed border-gray-300">
+                 <p className="text-gray-500 mb-4">No products found.</p>
+                 <button onClick={() => setActiveTab('add')} className="bg-green-600 text-white px-6 py-2 rounded-lg font-bold">Post First Product</button>
+               </div>
+            ) : (
+              <div className="bg-white rounded-xl shadow-sm overflow-hidden border">
+                <table className="w-full text-left">
+                  <thead className="bg-gray-50 text-gray-600 border-b">
+                    <tr><th className="p-4">Image</th><th className="p-4">Title</th><th className="p-4">Price</th><th className="p-4 text-right">Actions</th></tr>
+                  </thead>
+                  <tbody>
+                    {products.map((p) => (
+                      <tr key={p._id} className="border-b last:border-0 hover:bg-gray-50">
+                        <td className="p-4">
+                          <img src={p.images[0]?.url || 'https://via.placeholder.com/50'} alt={p.title} className="w-12 h-12 object-cover rounded" />
+                        </td>
+                        <td className="p-4 font-medium">{p.title}</td>
+                        <td className="p-4 text-green-700 font-bold">₦{Number(p.price).toLocaleString()}</td>
+                        <td className="p-4 text-right space-x-2">
+                          <button onClick={() => { 
+                             setEditingProductId(p._id); 
+                             setProductForm({
+                               title: p.title, description: p.description, price: p.price.toString(),
+                               category: p.category, condition: p.condition || 'Used', location: p.location || '', 
+                               images: p.images.map(img => img.url) 
+                             }); 
+                             setActiveTab('add'); 
+                          }} className="p-2 text-blue-600 hover:bg-blue-50 rounded"><Edit size={18} /></button>
+                          <button onClick={() => handleDeleteProduct(p._id)} className="p-2 text-red-600 hover:bg-red-50 rounded"><Trash2 size={18} /></button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ADD / EDIT PRODUCT */}
+        {activeTab === 'add' && (
+          <div className="max-w-2xl mx-auto">
+            <h2 className="text-2xl font-bold mb-6">{editingProductId ? 'Edit Product' : 'Add New Product'}</h2>
+            <form onSubmit={handleSaveProduct} className="bg-white p-8 rounded-xl shadow-sm space-y-6">
+              <div><label className="block text-sm font-bold text-gray-700 mb-2">Title</label><input type="text" required className="w-full p-3 border rounded-lg" value={productForm.title} onChange={e => setProductForm({...productForm, title: e.target.value})} /></div>
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className="block text-sm font-bold text-gray-700 mb-2">Price (₦)</label><input type="number" required className="w-full p-3 border rounded-lg" value={productForm.price} onChange={e => setProductForm({...productForm, price: e.target.value})} /></div>
+                <div><label className="block text-sm font-bold text-gray-700 mb-2">Category</label><select className="w-full p-3 border rounded-lg" value={productForm.category} onChange={e => setProductForm({...productForm, category: e.target.value})}>{CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
+              </div>
+              <div><label className="block text-sm font-bold text-gray-700 mb-2">Condition</label><div className="flex gap-4"><label className="flex items-center gap-2"><input type="radio" name="condition" value="New" checked={productForm.condition === 'New'} onChange={() => setProductForm({...productForm, condition: 'New'})} /> New</label><label className="flex items-center gap-2"><input type="radio" name="condition" value="Used" checked={productForm.condition === 'Used'} onChange={() => setProductForm({...productForm, condition: 'Used'})} /> Used</label></div></div>
+              <div><label className="block text-sm font-bold text-gray-700 mb-2">Description</label><textarea required rows={4} className="w-full p-3 border rounded-lg" value={productForm.description} onChange={e => setProductForm({...productForm, description: e.target.value})} /></div>
+              <div>
+                 <label className="block text-sm font-bold text-gray-700 mb-2">Images</label>
+                 <div className="grid grid-cols-4 gap-4 mb-4">
+                   {productForm.images.map((img, idx) => (
+                     <div key={idx} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden border">
+                       <img src={img} alt="preview" className="w-full h-full object-cover" />
+                       <button type="button" onClick={() => removeImage(idx)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1"><Trash2 size={12} /></button>
+                     </div>
+                   ))}
+                   <label className="flex flex-col items-center justify-center aspect-square border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                     <ImageIcon className="text-gray-400" /><input type="file" multiple accept="image/*" className="hidden" onChange={handleImageUpload} />
+                   </label>
+                 </div>
+              </div>
+              <button disabled={loading} className="w-full bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700">{loading ? 'Saving...' : 'Save Product'}</button>
+            </form>
+          </div>
+        )}
+
+        {/* PROFILE SETTINGS */}
+        {activeTab === 'profile' && (
+          <div className="max-w-2xl mx-auto">
+             <h2 className="text-2xl font-bold mb-6">Profile Settings</h2>
+             <form onSubmit={handleUpdateProfile} className="bg-white p-8 rounded-xl shadow-sm space-y-6">
+                <div><label className="block text-sm font-bold text-gray-700 mb-2">Full Name</label><input type="text" className="w-full p-3 border rounded-lg" value={profileForm.name} onChange={e => setProfileForm({...profileForm, name: e.target.value})} /></div>
+                {isSeller && (
+                  <>
+                    <div><label className="block text-sm font-bold text-gray-700 mb-2">Store Name</label><input type="text" className="w-full p-3 border rounded-lg" value={profileForm.storeName} onChange={e => setProfileForm({...profileForm, storeName: e.target.value})} /></div>
+                    <div><label className="block text-sm font-bold text-gray-700 mb-2">Store Description</label><textarea rows={3} className="w-full p-3 border rounded-lg" value={profileForm.description} onChange={e => setProfileForm({...profileForm, description: e.target.value})} /></div>
+                    <div><label className="block text-sm font-bold text-gray-700 mb-2">Location</label><input type="text" className="w-full p-3 border rounded-lg" value={profileForm.location} onChange={e => setProfileForm({...profileForm, location: e.target.value})} /></div>
+                  </>
+                )}
+                <div className="grid grid-cols-2 gap-4">
+                   <div><label className="block text-sm font-bold text-gray-700 mb-2">WhatsApp</label><input type="text" className="w-full p-3 border rounded-lg" value={profileForm.whatsapp} onChange={e => setProfileForm({...profileForm, whatsapp: e.target.value})} /></div>
+                   <div><label className="block text-sm font-bold text-gray-700 mb-2">Instagram</label><input type="text" className="w-full p-3 border rounded-lg" value={profileForm.instagram} onChange={e => setProfileForm({...profileForm, instagram: e.target.value})} /></div>
+                </div>
+                <button disabled={loading} className="w-full bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700">{loading ? 'Saving...' : 'Save Profile'}</button>
+             </form>
+          </div>
+        )}
+
+      </main>
     </div>
   );
 };

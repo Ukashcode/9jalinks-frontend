@@ -1,60 +1,52 @@
 export enum UserRole {
   BUYER = 'BUYER',
-  SELLER = 'SELLER'
-}
-
-export interface SocialLinks {
-  whatsapp?: string;
-  instagram?: string;
-  facebook?: string;
-  twitter?: string;
-}
-
-export interface Review {
-  id?: string;
-  raterId: string;
-  raterName: string;
-  rating: number;
-  comment: string;
-  createdAt: number | string | Date;
+  SELLER = 'SELLER',
+  ADMIN = 'ADMIN'
 }
 
 export interface User {
-  id: string;
+  id: string; // The frontend usually maps _id to id
+  _id?: string; // For safety
   name: string;
   email: string;
-  // Allow string so it matches backend response easily, or enum
-  role: UserRole | 'BUYER' | 'SELLER'; 
+  role: 'BUYER' | 'SELLER' | 'ADMIN';
+  isVerified?: boolean;
   
-  // Extended Profile Fields (These are causing your errors)
-  storeName?: string;
-  description?: string;
-  location?: string;
-  profileImage?: string;
-  socialLinks?: SocialLinks;
+  // ✅ Fixed: Matches your Backend Schema (storeSchema)
+  store?: {
+    name: string;
+    description: string;
+    location: string;
+  };
 
-  // Rating Fields
-  rating?: number;
-  reviewCount?: number;
-  reviews?: Review[];
-
-  createdAt?: number | string | Date;
+  // ✅ Fixed: Matches your Backend Schema (socialSchema)
+  social?: {
+    whatsapp: string;
+    instagram: string;
+    facebook?: string;
+    twitter?: string;
+  };
 }
 
 export interface Product {
-  id: string;
-  sellerId: string;
+  _id: string; // MongoDB ID
+  id?: string; // Frontend helper
   title: string;
-  description: string;
   price: number;
   category: string;
+  description: string;
   
-  // This was causing the "Property condition does not exist" error
-  condition: 'New' | 'Used' | 'Refurbished'; 
+  // ✅ Fixed: Added Condition to remove type error
+  condition: 'New' | 'Used' | 'Refurbished' | string; 
   
-  images: string[];
+  location?: string;
+  
+  // ✅ Fixed: Matches backend response
+  images: { url: string; public_id?: string }[]; 
+  
+  seller: User | string; // Can be the User object or just the ID string
   views: number;
-  createdAt?: number | string | Date;
+  createdAt?: string | Date;
 }
 
 export interface AuthResponse {
@@ -62,7 +54,6 @@ export interface AuthResponse {
   token: string;
 }
 
-// This was causing the "Module has no exported member CATEGORIES" error
 export const CATEGORIES = [
   "Electronics",
   "Fashion",

@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
 import { ArrowLeft, ChevronDown, ChevronUp, Mail, Phone } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
-const Help: React.FC<{ onBack: () => void }> = ({ onBack }) => {
+// ✅ Fixed: No props needed
+const Help: React.FC = () => {
+  const navigate = useNavigate();
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   const faqs = [
     {
       q: "Is 9jalinks free to use?",
-      a: "Yes! registering as a buyer or seller is completely free. We want to encourage trade without barriers."
+      a: "Yes! Registering as a buyer or seller is completely free. We want to encourage trade without barriers."
     },
     {
       q: "How do I contact a seller?",
@@ -32,7 +35,8 @@ const Help: React.FC<{ onBack: () => void }> = ({ onBack }) => {
        </div>
 
        <div className="max-w-3xl mx-auto px-4 py-8">
-         <button onClick={onBack} className="flex items-center text-gray-600 mb-8 hover:text-nigeria-green font-medium">
+         {/* ✅ Fixed: Uses router navigation */}
+         <button onClick={() => navigate('/')} className="flex items-center text-gray-600 mb-8 hover:text-green-700 font-medium">
             <ArrowLeft size={20} className="mr-2" /> Back to Home
          </button>
 
@@ -64,13 +68,13 @@ const Help: React.FC<{ onBack: () => void }> = ({ onBack }) => {
             <h2 className="text-xl font-bold mb-6 text-gray-800">Still need help?</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                <div className="p-4 border rounded-lg flex items-start space-x-4">
-                  <div className="bg-green-100 p-3 rounded-full text-nigeria-green">
+                  <div className="bg-green-100 p-3 rounded-full text-green-700">
                      <Mail size={24} />
                   </div>
                   <div>
                      <h3 className="font-bold text-gray-900">Email Support</h3>
                      <p className="text-sm text-gray-500 mb-2">We typically reply within 24 hours.</p>
-                     <a href="mailto:support@9jalinks.ng" className="text-nigeria-green font-medium hover:underline">support@9jalinks.ng</a>
+                     <a href="mailto:support@9jalinks.ng" className="text-green-700 font-medium hover:underline">support@9jalinks.ng</a>
                   </div>
                </div>
 
@@ -81,7 +85,7 @@ const Help: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                   <div>
                      <h3 className="font-bold text-gray-900">Call Us</h3>
                      <p className="text-sm text-gray-500 mb-2">Mon-Fri from 8am to 5pm.</p>
-                     <a href="tel:+2348009JALINKS" className="text-nigeria-green font-medium hover:underline">+234 800 9JALINKS</a>
+                     <a href="tel:+2348009JALINKS" className="text-green-700 font-medium hover:underline">+234 800 9JALINKS</a>
                   </div>
                </div>
             </div>

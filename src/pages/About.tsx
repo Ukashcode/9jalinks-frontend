@@ -1,11 +1,15 @@
 import React from 'react';
 import { ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
-const About: React.FC<{ onBack: () => void }> = ({ onBack }) => {
+// ✅ Fixed: No props needed anymore
+const About: React.FC = () => {
+  const navigate = useNavigate();
+
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
-      <div className="bg-nigeria-green text-white py-16">
+      <div className="bg-green-700 text-white py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-4xl font-bold mb-4">About 9jalinks</h1>
           <p className="text-xl text-green-100">Connecting Nigeria, One Trade at a Time.</p>
@@ -13,7 +17,8 @@ const About: React.FC<{ onBack: () => void }> = ({ onBack }) => {
       </div>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <button onClick={onBack} className="flex items-center text-gray-600 mb-8 hover:text-nigeria-green font-medium">
+        {/* ✅ Fixed: Uses router navigation instead of prop */}
+        <button onClick={() => navigate('/')} className="flex items-center text-gray-600 mb-8 hover:text-green-700 font-medium">
            <ArrowLeft size={20} className="mr-2" /> Back to Home
         </button>
 
@@ -33,17 +38,17 @@ const About: React.FC<{ onBack: () => void }> = ({ onBack }) => {
              <h2 className="text-2xl font-bold text-gray-900 mb-6">How We Work</h2>
              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <div className="text-center">
-                   <div className="w-12 h-12 bg-green-100 text-nigeria-green rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-4">1</div>
+                   <div className="w-12 h-12 bg-green-100 text-green-700 rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-4">1</div>
                    <h3 className="font-bold mb-2">Connect</h3>
                    <p className="text-sm text-gray-600">Sellers list their products with ease. Buyers browse categories to find exactly what they need.</p>
                 </div>
                 <div className="text-center">
-                   <div className="w-12 h-12 bg-green-100 text-nigeria-green rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-4">2</div>
+                   <div className="w-12 h-12 bg-green-100 text-green-700 rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-4">2</div>
                    <h3 className="font-bold mb-2">Chat</h3>
                    <p className="text-sm text-gray-600">Interested buyers connect directly with sellers via WhatsApp. Real people, real conversations.</p>
                 </div>
                 <div className="text-center">
-                   <div className="w-12 h-12 bg-green-100 text-nigeria-green rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-4">3</div>
+                   <div className="w-12 h-12 bg-green-100 text-green-700 rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-4">3</div>
                    <h3 className="font-bold mb-2">Trade</h3>
                    <p className="text-sm text-gray-600">Negotiate, arrange delivery, and complete the sale off-platform. Safe and simple.</p>
                 </div>

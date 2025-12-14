@@ -1,9 +1,9 @@
 import { User, Product, AuthResponse } from '../types';
 
 // We cast to 'any' here as a backup in case the d.ts file doesn't pick up immediately
-//const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000/api';
 //const API_URL = 'http://localhost:5000/api'; // Keep this commented out for later
-const API_URL = 'https://ninejalinks-backend-1.onrender.com/api';
+
 const getHeaders = () => {
   const token = localStorage.getItem('token');
   return {
